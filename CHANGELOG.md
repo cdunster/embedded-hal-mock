@@ -31,6 +31,7 @@ contributions!
 - Support for both `embedded-hal` 0.x and 1.x in the same crate (#75)
 - Print a warning to stderr and fail test if a mock is dropped without having
   calling `.done()` on it, or if `.done()` is called twice (#59, #61)
+- Implement mock for `embedded_hal::pwm::SetDutyCycle`
 
 ### Fixed
 
