@@ -1,8 +1,10 @@
 //! Mock digital [`InputPin`], [`OutputPin`], and [`ToggleableOutputPin`] implementations
+//! Also mock calls to [`Wait`], assuming the `embedded-hal-async` feature is enabled.
 //!
 //! [`InputPin`]: https://docs.rs/embedded-hal/1.0.0-rc.1/embedded_hal/digital/trait.InputPin.html
 //! [`OutputPin`]: https://docs.rs/embedded-hal/1.0.0-rc.1/embedded_hal/digital/trait.OutputPin.html
 //! [`ToggleableOutputPin`]: https://docs.rs/embedded-hal/1.0.0-rc.1/embedded_hal/digital/trait.ToggleableOutputPin.html
+//! [`Wait`]: https://docs.rs/embedded-hal-async/1.0.0-rc.1/embedded_hal_async/digital/trait.Wait.html
 //!
 //! ```
 //! # use eh1 as embedded_hal;
@@ -70,6 +72,18 @@ pub enum State {
     High,
 }
 
+#[cfg(feature = "embedded-hal-async")]
+#[derive(PartialEq, Eq, Copy, Clone, Debug)]
+/// Digital pin edge enumeration
+pub enum Edge {
+    /// Digital rising edge
+    Rising,
+    /// Digital falling edge
+    Falling,
+    /// Either digital rising or falling edge
+    Any,
+}
+
 impl Transaction {
     /// Create a new pin transaction
     pub fn new(kind: TransactionKind) -> Transaction {
@@ -89,6 +103,18 @@ impl Transaction {
     /// Create a new toggle transaction
     pub fn toggle() -> Transaction {
         Transaction::new(TransactionKind::Toggle)
+    }
+
+    /// Create a new wait_for_state transaction
+    #[cfg(feature = "embedded-hal-async")]
+    pub fn wait_for_state(state: State) -> Transaction {
+        Transaction::new(TransactionKind::WaitForState(state))
+    }
+
+    /// Crate a new wait_for_edge transaction
+    #[cfg(feature = "embedded-hal-async")]
+    pub fn wait_for_edge(edge: Edge) -> Transaction {
+        Transaction::new(TransactionKind::WaitForEdge(edge))
     }
 
     /// Add an error return to a transaction
@@ -116,6 +142,12 @@ pub enum TransactionKind {
     Get(State),
     /// Toggle for an expected toggle of the pin
     Toggle,
+    /// Wait for the given pin state
+    #[cfg(feature = "embedded-hal-async")]
+    WaitForState(State),
+    /// Wait for the given pin edge
+    #[cfg(feature = "embedded-hal-async")]
+    WaitForEdge(Edge),
 }
 
 impl TransactionKind {
@@ -225,6 +257,108 @@ impl ToggleableOutputPin for Mock {
     }
 }
 
+#[cfg(feature = "embedded-hal-async")]
+impl embedded_hal_async::digital::Wait for Mock {
+    /// Wait for the pin to go high
+    async fn wait_for_high(&mut self) -> Result<(), Self::Error> {
+        let mut s = self.clone();
+
+        let Transaction { kind, err } = s
+            .next()
+            .expect("no expectation for pin::wait_for_high call");
+
+        assert!(
+            matches!(kind, TransactionKind::WaitForState(State::High)),
+            "got call to wait_for_high"
+        );
+
+        if let Some(e) = err {
+            Err(e)
+        } else {
+            Ok(())
+        }
+    }
+
+    /// Wait for the pin to go low
+    async fn wait_for_low(&mut self) -> Result<(), Self::Error> {
+        let mut s = self.clone();
+
+        let Transaction { kind, err } =
+            s.next().expect("no expectation for pin::wait_for_low call");
+
+        assert!(
+            matches!(kind, TransactionKind::WaitForState(State::Low)),
+            "got call to wait_for_low"
+        );
+
+        if let Some(e) = err {
+            Err(e)
+        } else {
+            Ok(())
+        }
+    }
+
+    /// Wait for the pin to have a rising edge
+    async fn wait_for_rising_edge(&mut self) -> Result<(), Self::Error> {
+        let mut s = self.clone();
+
+        let Transaction { kind, err } = s
+            .next()
+            .expect("no expectation for pin::wait_for_rising_edge call");
+
+        assert!(
+            matches!(kind, TransactionKind::WaitForEdge(Edge::Rising)),
+            "got call to wait_for_rising_edge"
+        );
+
+        if let Some(e) = err {
+            Err(e)
+        } else {
+            Ok(())
+        }
+    }
+
+    /// Wait for the pin to have a falling edge
+    async fn wait_for_falling_edge(&mut self) -> Result<(), Self::Error> {
+        let mut s = self.clone();
+
+        let Transaction { kind, err } = s
+            .next()
+            .expect("no expectation for pin::wait_for_falling_edge call");
+
+        assert!(
+            matches!(kind, TransactionKind::WaitForEdge(Edge::Falling)),
+            "got call to wait_for_falling_edge"
+        );
+
+        if let Some(e) = err {
+            Err(e)
+        } else {
+            Ok(())
+        }
+    }
+
+    /// Wait for the pin to have either a rising or falling edge
+    async fn wait_for_any_edge(&mut self) -> Result<(), Self::Error> {
+        let mut s = self.clone();
+
+        let Transaction { kind, err } = s
+            .next()
+            .expect("no expectation for pin::wait_for_any_edge call");
+
+        assert!(
+            matches!(kind, TransactionKind::WaitForEdge(Edge::Any)),
+            "got call to wait_for_any_edge"
+        );
+
+        if let Some(e) = err {
+            Err(e)
+        } else {
+            Ok(())
+        }
+    }
+}
+
 #[cfg(test)]
 mod test {
     use super::super::error::MockError;
@@ -287,6 +421,82 @@ mod test {
         pin.toggle().unwrap();
 
         pin.toggle().expect_err("expected error return");
+
+        pin.done();
+    }
+
+    #[tokio::test]
+    #[cfg(feature = "embedded-hal-async")]
+    async fn test_can_wait_for_state() {
+        use embedded_hal_async::digital::Wait;
+
+        let expectations = [
+            Transaction::new(TransactionKind::WaitForState(State::High)),
+            Transaction::new(TransactionKind::WaitForState(State::Low)),
+            Transaction::new(TransactionKind::WaitForState(State::High))
+                .with_error(MockError::Io(ErrorKind::NotConnected)),
+        ];
+        let mut pin = Mock::new(&expectations);
+
+        pin.wait_for_high().await.unwrap();
+        pin.wait_for_low().await.unwrap();
+
+        pin.wait_for_high()
+            .await
+            .expect_err("expected error return");
+
+        pin.done();
+    }
+
+    #[tokio::test]
+    #[should_panic(expected = "got call to wait_for_high")]
+    #[cfg(feature = "embedded-hal-async")]
+    async fn test_wait_for_wrong_state() {
+        use embedded_hal_async::digital::Wait;
+
+        let expectations = [Transaction::wait_for_state(State::Low)];
+        let mut pin = Mock::new(&expectations);
+
+        pin.wait_for_high().await.unwrap();
+
+        pin.done();
+    }
+
+    #[tokio::test]
+    #[cfg(feature = "embedded-hal-async")]
+    async fn test_can_wait_for_edge() {
+        use embedded_hal_async::digital::Wait;
+
+        let expectations = [
+            Transaction::new(TransactionKind::WaitForEdge(Edge::Rising)),
+            Transaction::new(TransactionKind::WaitForEdge(Edge::Falling)),
+            Transaction::new(TransactionKind::WaitForEdge(Edge::Any)),
+            Transaction::new(TransactionKind::WaitForEdge(Edge::Rising))
+                .with_error(MockError::Io(ErrorKind::NotConnected)),
+        ];
+        let mut pin = Mock::new(&expectations);
+
+        pin.wait_for_rising_edge().await.unwrap();
+        pin.wait_for_falling_edge().await.unwrap();
+        pin.wait_for_any_edge().await.unwrap();
+
+        pin.wait_for_rising_edge()
+            .await
+            .expect_err("expected error return");
+
+        pin.done();
+    }
+
+    #[tokio::test]
+    #[should_panic(expected = "got call to wait_for_rising_edge")]
+    #[cfg(feature = "embedded-hal-async")]
+    async fn test_wait_for_wrong_edge() {
+        use embedded_hal_async::digital::Wait;
+
+        let expectations = [Transaction::wait_for_edge(Edge::Falling)];
+        let mut pin = Mock::new(&expectations);
+
+        pin.wait_for_rising_edge().await.unwrap();
 
         pin.done();
     }
