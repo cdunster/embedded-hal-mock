@@ -40,7 +40,7 @@
 //!
 //! // Configure expectations
 //! let expectations = [
-//!     Transaction::read(1, 0xabba).with_error(MockError::Io(ErrorKind::InvalidData))
+//!     Transaction::read(1, 0xabba).with_error(MockError::Other(String::new()))
 //! ];
 //! let mut adc = Mock::new(&expectations);
 //!
@@ -147,8 +147,6 @@ mod test {
     use eh0 as embedded_hal;
     use embedded_hal::adc::OneShot;
 
-    use std::io::ErrorKind;
-
     #[test]
     fn test_adc_single_read16() {
         let expectations = [Transaction::read(0, 0xabcdu16)];
@@ -189,7 +187,7 @@ mod test {
     fn test_adc_err_read() {
         let expectations = [
             Transaction::read(0, 0xabcd),
-            Transaction::read(1, 0xabba).with_error(MockError::Io(ErrorKind::InvalidData)),
+            Transaction::read(1, 0xabba).with_error(MockError::Other(String::new())),
         ];
         let mut adc = Mock::new(&expectations);
 

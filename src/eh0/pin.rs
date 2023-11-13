@@ -12,7 +12,7 @@
 //! use embedded_hal_mock::eh0::pin::{Transaction as PinTransaction, Mock as PinMock, State as PinState};
 //! use embedded_hal::digital::v2::{InputPin, OutputPin, ToggleableOutputPin};
 //!
-//! let err = MockError::Io(ErrorKind::NotConnected);
+//! let err = MockError::Other(String::new());
 //!
 //! // Configure expectations
 //! let expectations = [
@@ -333,8 +333,6 @@ mod test {
     use super::TransactionKind::*;
     use super::*;
 
-    use std::io::ErrorKind;
-
     use eh0 as embedded_hal;
     use embedded_hal::digital::v2::{InputPin, OutputPin};
     use embedded_hal::PwmPin;
@@ -346,7 +344,7 @@ mod test {
             Transaction::new(Get(State::High)),
             Transaction::new(Get(State::Low)),
             Transaction::new(Get(State::Low)),
-            Transaction::new(Get(State::High)).with_error(MockError::Io(ErrorKind::NotConnected)),
+            Transaction::new(Get(State::High)).with_error(MockError::Other(String::new())),
         ];
         let mut pin = Mock::new(&expectations);
 
@@ -365,7 +363,7 @@ mod test {
         let expectations = [
             Transaction::new(Set(State::High)),
             Transaction::new(Set(State::Low)),
-            Transaction::new(Set(State::High)).with_error(MockError::Io(ErrorKind::NotConnected)),
+            Transaction::new(Set(State::High)).with_error(MockError::Other(String::new())),
         ];
         let mut pin = Mock::new(&expectations);
 
@@ -382,7 +380,7 @@ mod test {
         let expectations = [
             Transaction::new(Toggle),
             Transaction::toggle(),
-            Transaction::new(Toggle).with_error(MockError::Io(ErrorKind::NotConnected)),
+            Transaction::new(Toggle).with_error(MockError::Other(String::new())),
         ];
         let mut pin = Mock::new(&expectations);
 

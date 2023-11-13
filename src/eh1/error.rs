@@ -1,4 +1,4 @@
-use std::{error::Error as StdError, fmt, io};
+use core::fmt;
 
 use eh1 as embedded_hal;
 use embedded_hal::digital::ErrorKind::{self, Other};
@@ -6,8 +6,8 @@ use embedded_hal::digital::ErrorKind::{self, Other};
 /// Errors that may occur during mocking.
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub enum MockError {
-    /// An I/O-Error occurred
-    Io(io::ErrorKind),
+    /// An unspecified error occurred.
+    Other(String),
 }
 
 impl embedded_hal::digital::Error for MockError {
@@ -16,18 +16,10 @@ impl embedded_hal::digital::Error for MockError {
     }
 }
 
-impl From<io::Error> for MockError {
-    fn from(e: io::Error) -> Self {
-        MockError::Io(e.kind())
-    }
-}
-
 impl fmt::Display for MockError {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
-            MockError::Io(kind) => write!(f, "I/O error: {:?}", kind),
+            MockError::Other(msg) => write!(f, "Error: {:?}", msg),
         }
     }
 }
-
-impl StdError for MockError {}

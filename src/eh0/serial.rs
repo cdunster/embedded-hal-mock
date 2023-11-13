@@ -105,8 +105,8 @@
 //! let expectations = [
 //!     SerialTransaction::read(42),
 //!     SerialTransaction::read_error(nb::Error::WouldBlock),
-//!     SerialTransaction::write_error(23, nb::Error::Other(MockError::Io(ErrorKind::Other))),
-//!     SerialTransaction::flush_error(nb::Error::Other(MockError::Io(ErrorKind::Interrupted))),
+//!     SerialTransaction::write_error(23, nb::Error::Other(MockError::Other(String::new()))),
+//!     SerialTransaction::flush_error(nb::Error::Other(MockError::Other(String::new()))),
 //! ];
 //! let mut serial = SerialMock::new(&expectations);
 //!
@@ -119,11 +119,11 @@
 //! // The following write/flush calls will return errors as well
 //! assert_eq!(
 //!     serial.write(23).unwrap_err(),
-//!     nb::Error::Other(MockError::Io(ErrorKind::Other))
+//!     nb::Error::Other(MockError::Other(String::new()))
 //! );
 //! assert_eq!(
 //!     serial.flush().unwrap_err(),
-//!     nb::Error::Other(MockError::Io(ErrorKind::Interrupted))
+//!     nb::Error::Other(MockError::Other(String::new()))
 //! );
 //!
 //! // When you believe there are no more calls on the mock,
@@ -452,8 +452,6 @@ mod test {
     use super::super::error::MockError;
     use super::*;
 
-    use std::io;
-
     use eh0 as embedded_hal;
     use embedded_hal::{
         blocking::serial::Write as BWrite,
@@ -608,7 +606,7 @@ mod test {
 
     #[test]
     fn test_serial_mock_write_error() {
-        let error = nb::Error::Other(MockError::Io(io::ErrorKind::NotConnected));
+        let error = nb::Error::Other(MockError::Other(String::new()));
         let ts = [Transaction::write_error(42, error.clone())];
         let mut ser: Mock<u8> = Mock::new(&ts);
         assert_eq!(ser.write(42).unwrap_err(), error);
@@ -618,7 +616,7 @@ mod test {
     #[test]
     #[should_panic(expected = "serial::write expected to write 42 but actually wrote 23")]
     fn test_serial_mock_write_error_wrong_data() {
-        let error = nb::Error::Other(MockError::Io(io::ErrorKind::NotConnected));
+        let error = nb::Error::Other(MockError::Other(String::new()));
         let ts = [Transaction::write_error(42, error.clone())];
         let mut ser: Mock<u8> = Mock::new(&ts);
         // The data to be written should still be verified, even if there's an
@@ -628,7 +626,7 @@ mod test {
 
     #[test]
     fn test_serial_mock_flush_error() {
-        let error = nb::Error::Other(MockError::Io(io::ErrorKind::TimedOut));
+        let error = nb::Error::Other(MockError::Other(String::new()));
         let ts = [Transaction::flush_error(error.clone())];
         let mut ser: Mock<u8> = Mock::new(&ts);
         assert_eq!(ser.flush().unwrap_err(), error);

@@ -52,7 +52,7 @@
 //! // Configure expectations
 //! let expectations = [
 //!     I2cTransaction::write(0xaa, vec![1, 2]),
-//!     I2cTransaction::read(0xbb, vec![3, 4]).with_error(MockError::Io(ErrorKind::Other)),
+//!     I2cTransaction::read(0xbb, vec![3, 4]).with_error(MockError::Other(String::new())),
 //! ];
 //! let mut i2c = I2cMock::new(&expectations);
 //!
@@ -62,7 +62,7 @@
 //! // Reading returns an error
 //! let mut buf = vec![0; 2];
 //! let err = i2c.read(0xbb, &mut buf).unwrap_err();
-//! assert_eq!(err, MockError::Io(ErrorKind::Other));
+//! assert_eq!(err, MockError::Other(String::new()));
 //!
 //! // Finalise expectations
 //! i2c.done();
@@ -280,7 +280,7 @@ mod test {
     use super::super::error::MockError;
     use super::*;
 
-    use std::{io::ErrorKind as IoErrorKind, time::SystemTime};
+    use std::time::SystemTime;
 
     use eh0 as embedded_hal;
     use embedded_hal::blocking::i2c::{Read, Write, WriteRead};
@@ -417,7 +417,7 @@ mod test {
 
         #[test]
         fn write() {
-            let expected_err = MockError::Io(IoErrorKind::Other);
+            let expected_err = MockError::Other(String::new());
             let mut i2c = Mock::new(&[
                 Transaction::write(0xaa, vec![10, 12]).with_error(expected_err.clone())
             ]);
@@ -430,8 +430,9 @@ mod test {
         #[test]
         #[should_panic(expected = "i2c::read unexpected mode")]
         fn write_wrong_mode() {
-            let mut i2c = Mock::new(&[Transaction::write(0xaa, vec![10, 12])
-                .with_error(MockError::Io(IoErrorKind::Other))]);
+            let mut i2c =
+                Mock::new(&[Transaction::write(0xaa, vec![10, 12])
+                    .with_error(MockError::Other(String::new()))]);
             let mut buf = vec![0; 2];
             let _ = i2c.read(0xaa, &mut buf);
         }
@@ -440,14 +441,15 @@ mod test {
         #[test]
         #[should_panic(expected = "i2c::write data does not match expectation")]
         fn write_wrong_data() {
-            let mut i2c = Mock::new(&[Transaction::write(0xaa, vec![10, 12])
-                .with_error(MockError::Io(IoErrorKind::Other))]);
+            let mut i2c =
+                Mock::new(&[Transaction::write(0xaa, vec![10, 12])
+                    .with_error(MockError::Other(String::new()))]);
             let _ = i2c.write(0xaa, &vec![10, 13]);
         }
 
         #[test]
         fn read() {
-            let expected_err = MockError::Io(IoErrorKind::Other);
+            let expected_err = MockError::Other(String::new());
             let mut i2c =
                 Mock::new(
                     &[Transaction::read(0xaa, vec![10, 12]).with_error(expected_err.clone())],
@@ -460,7 +462,7 @@ mod test {
 
         #[test]
         fn write_read() {
-            let expected_err = MockError::Io(IoErrorKind::Other);
+            let expected_err = MockError::Other(String::new());
             let mut i2c = Mock::new(&[Transaction::write_read(0xaa, vec![10, 12], vec![13, 14])
                 .with_error(expected_err.clone())]);
             let mut buf = vec![0; 2];
@@ -474,7 +476,7 @@ mod test {
         #[should_panic(expected = "i2c::write_read write data does not match expectation")]
         fn write_read_wrong_data() {
             let mut i2c = Mock::new(&[Transaction::write_read(0xaa, vec![10, 12], vec![13, 14])
-                .with_error(MockError::Io(IoErrorKind::Other))]);
+                .with_error(MockError::Other(String::new()))]);
             let mut buf = vec![0; 2];
             let _ = i2c.write_read(0xaa, &vec![10, 13], &mut buf);
         }

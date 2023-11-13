@@ -8,7 +8,7 @@
 //! use embedded_hal_mock::eh1::pwm::{Transaction as PwmTransaction, Mock as PwmMock};
 //! use eh1::pwm::SetDutyCycle;
 //!
-//! let err = MockError::Io(ErrorKind::NotConnected);
+//! let err = MockError::Other(String::new());
 //!
 //! // Configure expectations
 //! let expectations = [
